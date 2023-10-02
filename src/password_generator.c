@@ -6,91 +6,87 @@
 *    @Repository: https://github.com/BaseMax/CPasswordGenerator
 *
 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-// Define the password length
-#define PASSWORD_LENGTH 12
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
-
-// Function to generate a random byte on Windows
-unsigned char generateRandomByte() {
-    unsigned char randomByte;
-    if (!CryptGenRandom(GetCurrentProcess(), sizeof(randomByte), &randomByte)) {
-        fprintf(stderr, "Error generating random byte\n");
-        exit(1);
-    }
-    return randomByte;
-}
-
 #else
 #include <fcntl.h>
 #include <unistd.h>
-
-// Function to generate a random byte on Linux
-unsigned char generateRandomByte() {
-    int urandom_fd = open("/dev/urandom", O_RDONLY);
-    if (urandom_fd == -1) {
-        perror("Error opening /dev/urandom");
-        exit(1);
-    }
-
-    unsigned char randomByte;
-    ssize_t bytes_read = read(urandom_fd, &randomByte, sizeof(randomByte));
-    if (bytes_read == -1) {
-        perror("Error reading from /dev/urandom");
-        close(urandom_fd);
-        exit(1);
-    }
-
-    close(urandom_fd);
-    return randomByte;
-}
-
 #endif
 
-int main() {
-    int password_length;
-    char allow_symbols, allow_uppercase;
-    const char* valid_chars_lowercase = "abcdefghijklmnopqrstuvwxyz0123456789";
-    const char* valid_chars_symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+// Function to generate a random password
+void generatePassword(int length, int useSymbols, int useUpperCase) {
+    const char charsetLower[] = "abcdefghijklmnopqrstuvwxyz";
+    const char charsetUpper[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const char symbols[] = "!@#$%^&*()_+=-{}[]|:;<>,.?";
 
-    printf("Enter password length: ");
-    scanf("%d", &password_length);
+    char charset[128]; // Max possible characters
 
-    printf("Allow symbols (yes/no): ");
-    scanf(" %c", &allow_symbols);
+    strcpy(charset, charsetLower);
 
-    printf("Allow uppercase letters (yes/no): ");
-    scanf(" %c", &allow_uppercase);
-
-    const char* valid_chars = valid_chars_lowercase;
-    if (allow_symbols == 'y' || allow_symbols == 'Y') {
-        valid_chars = valid_chars_symbols;
+    if (useUpperCase) {
+        strcat(charset, charsetUpper);
     }
 
-    char password[password_length + 1]; // +1 for null terminator
-    memset(password, 0, sizeof(password));
+    if (useSymbols) {
+        strcat(charset, symbols);
+    }
 
-    size_t num_valid_chars = strlen(valid_chars);
+    int charsetLength = strlen(charset);
 
-    for (int i = 0; i < password_length; i++) {
-        unsigned char random_byte = generateRandomByte();
-        password[i] = valid_chars[random_byte % num_valid_chars];
+    char password[length + 1];
 
-        if (allow_uppercase == 'y' || allow_uppercase == 'Y') {
-            // Replace some characters with uppercase letters
-            if (i % 3 == 0) {
-                password[i] = 'A' + (random_byte % 26);
-            }
+#ifdef _WIN32
+    HCRYPTPROV hCryptProv;
+    if (CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        CryptGenRandom(hCryptProv, length, (BYTE *)password);
+        CryptReleaseContext(hCryptProv, 0);
+    } else {
+        perror("Error generating random password");
+        exit(1);
+    }
+#else
+    int urandom_fd = open("/dev/urandom", O_RDONLY);
+    if (urandom_fd == -1) {
+        perror("Unable to open /dev/urandom");
+        exit(1);
+    }
+
+    for (int i = 0; i < length; ++i) {
+        unsigned char randomByte;
+        ssize_t bytes_read = read(urandom_fd, &randomByte, sizeof(randomByte));
+        if (bytes_read != sizeof(randomByte)) {
+            perror("Error reading from /dev/urandom");
+            exit(1);
         }
+        password[i] = charset[randomByte % charsetLength];
     }
+    close(urandom_fd);
+#endif
+
+    password[length] = '\0';
 
     printf("Generated Password: %s\n", password);
+}
+
+int main() {
+    int length;
+    int useSymbols, useUpperCase;
+
+    printf("Enter the length of the password: ");
+    scanf("%d", &length);
+
+    printf("Should the password contain symbols? (0/1): ");
+    scanf("%d", &useSymbols);
+
+    printf("Should the password contain uppercase letters? (0/1): ");
+    scanf("%d", &useUpperCase);
+
+    generatePassword(length, useSymbols, useUpperCase);
 
     return 0;
 }
