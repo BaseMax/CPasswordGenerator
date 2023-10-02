@@ -1,4 +1,4 @@
-# Random Password Generator
+# Random C Password Generator
 
 A simple C program that generates random passwords with various options, designed to work on both Windows and Linux platforms.
 
@@ -61,3 +61,5 @@ Should the password contain symbols? (0/1): 0
 Should the password contain uppercase letters? (0/1): 1
 Generated Password: ipbzIStpeWLPfSnRmGmyYZmAkJfzEJTOvpsVJuPJLSHKANiChd
 ```
+
+Copyright 2023, Max Base
